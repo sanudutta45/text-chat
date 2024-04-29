@@ -1,0 +1,130 @@
+<div class="mx-auto flex h-full">
+  <!-- Left Panel -->
+  <div class="relative w-1/4 bg-gray-700">
+    <div class="absolute top-0 left-0 w-full h-full bg-gray-700" id="drawer" hidden="true">
+      <div class="flex items-center mb-4 bg-green-300 p-4">
+        <button phx-click={AuthDemoWeb.Layouts.App.toggle_drawer()}>
+          <img src="/images/left-arrow.png" width="30px" height="30px" />
+        </button>
+         <span class="text-lg font-bold text-white ml-2">New chat</span>
+      </div>
+      
+      <ul class="p-4 overflow-y-auto bg-gray-700">
+        <%= for user <- @users do %>
+          <li
+            class="flex items-center space-x-2 mb-2 cursor-pointer"
+            phx-click={AuthDemoWeb.Layouts.App.close_start_conversation()}
+            phx-value-id={user.id}
+          >
+            <div class="w-10 h-10 rounded-full bg-gray-400"></div>
+            
+            <div>
+              <p class="font-semibold text-white">
+                <%= user.email %>
+              </p>
+              <!-- Show last message content -->
+              <p class="text-sm text-gray-400">Hi there!</p>
+            </div>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+    <!-- Adjust max-height to accommodate header height -->
+    <div class="flex items-center bg-gray-800 p-4 justify-end">
+      <!-- Display the name of the chat user -->
+      <button phx-click={AuthDemoWeb.Layouts.App.toggle_drawer()}>
+        <img src="/images/add-chat.png" width="30px" height="30px" />
+      </button>
+    </div>
+    
+    <ul class="overflow-y-auto">
+      <%= for conversation <- @conversations do %>
+        <li
+          class={"flex items-center space-x-2 p-4 cursor-pointer hover:bg-gray-900 #{if @current_conversation && @current_conversation.id == conversation.id, do: 'bg-gray-900', else: ''}"}
+          phx-click="show-conversation"
+          id={"conversation-#{conversation.id}"}
+          phx-value-conversation_id={conversation.id}
+        >
+          <div class="w-10 h-10 rounded-full bg-gray-400"></div>
+          
+          <div class="flex-1">
+            <p class="font-semibold text-white">
+              <%= conversation.chat_title %>
+            </p>
+            <!-- Show last message content -->
+            <p class="text-sm text-gray-400">
+              <%= conversation.last_message %>
+            </p>
+          </div>
+          
+          <%= if conversation.unread_messages > 0 do %>
+            <div class="w-5 h-5 rounded-full bg-green-400 flex items-center justify-center">
+              <p class="text-white text-xs">
+                <%= conversation.unread_messages %>
+              </p>
+            </div>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+  <!-- Right Panel -->
+  <div class="flex-1 p-4 pt-0 bg-gray-900 flex flex-col">
+    <!-- Chat header -->
+    <%= if @current_conversation do %>
+      <div class="flex items-center justify-between mb-4 bg-gray-800 p-2 rounded-t-lg">
+        <!-- Display the name of the chat user -->
+        <div>
+          <h2 class="text-lg font-semibold text-white">
+            <%= @current_conversation.chat_title %>
+          </h2>
+          <!-- Display online/offline status -->
+          <p class="text-xs text-gray-400">Online</p>
+        </div>
+      </div>
+      <!-- Chat messages -->
+      <ul
+        class="overflow-y-auto h-80 border border-gray-600 p-4 bg-gray-800 flex-1"
+        phx-hook="ScrollDown"
+        id="chat_messages"
+      >
+        <%= for message <- @messages do %>
+          <li class={"flex mb-2 #{if message.sender_id == @current_user.id, do: 'justify-end ', else: ''}"}>
+            <div class={"text-white rounded-lg p-2 #{if message.sender_id == @current_user.id, do: 'bg-gray-700', else: 'bg-blue-500'}"}>
+              <p>
+                <%= message.text %>
+              </p>
+              
+              <p class="text-xs">12:05 PM</p>
+            </div>
+          </li>
+        <% end %>
+      </ul>
+      <!-- Chat input -->
+      <.form
+        id={@current_conversation.id}
+        for={@form}
+        phx-submit="send-message"
+        phx-change="validate"
+        class="mt-4 flex max-w-1/2"
+        phx-hook="SendMessageForm"
+      >
+        <.input
+          type="text"
+          field={@form[:text]}
+          class="block w-full border border-gray-600 p-2 bg-gray-800 text-white"
+          placeholder="Type your message..."
+          autocomplete="off"
+          phx-debounce="blur"
+        />
+        <button
+          class="bg-blue-500 text-white px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          id="send_msg_btn"
+          disabled="true"
+        >
+          Send
+        </button>
+      </.form>
+    <% end %>
+  </div>
+</div>
