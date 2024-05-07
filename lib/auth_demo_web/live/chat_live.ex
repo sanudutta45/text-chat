@@ -7,7 +7,16 @@ defmodule AuthDemoWeb.ChatLive do
   use AuthDemoWeb, :live_view
 
   def mount(_params, _session, socket) do
-    if connected?(socket), do: Endpoint.subscribe("user:#{socket.assigns.current_user.id}")
+    if connected?(socket) do
+      Endpoint.subscribe("user:#{socket.assigns.current_user.id}")
+
+      AuthDemoWeb.Presence.track_user(socket.assigns.current_user.id, %{
+        id: socket.assigns.current_user.id
+      })
+
+      AuthDemoWeb.Presence.subscribe()
+    end
+
     users = Account.get_users(socket.assigns.current_user.id)
 
     conversations =
@@ -18,7 +27,8 @@ defmodule AuthDemoWeb.ChatLive do
        users: users,
        conversations: conversations,
        current_conversation: nil,
-       messages: []
+       messages: [],
+       receiver_active: false
      )}
   end
 
@@ -40,7 +50,8 @@ defmodule AuthDemoWeb.ChatLive do
              members: [id, socket.assigns.current_user.id],
              chat_title: user.email,
              sender_id: socket.assigns.current_user.id,
-             receiver_id: id
+             receiver_id: id,
+             receiver_active: AuthDemoWeb.Presence.check_is_user_active(id)
            },
            messages: [],
            form: to_form(Messages.change_message(%Message{}))
@@ -135,6 +146,10 @@ defmodule AuthDemoWeb.ChatLive do
 
     receiver_id = Enum.find(current_conversation.members, &(&1 != socket.assigns.current_user.id))
     current_conversation = current_conversation |> Map.put(:receiver_id, receiver_id)
+
+    current_conversation =
+      current_conversation
+      |> Map.put(:receiver_active, AuthDemoWeb.Presence.check_is_user_active(receiver_id))
 
     conversations =
       if current_conversation.unread_messages > 0 do
@@ -233,5 +248,39 @@ defmodule AuthDemoWeb.ChatLive do
       end
 
     {:noreply, assign(socket, messages: messages, conversations: conversations)}
+  end
+
+  def handle_info({AuthDemoWeb.Presence, {:join, presence}}, socket) do
+    current_conversation = socket.assigns.current_conversation
+
+    case current_conversation do
+      nil ->
+        {:noreply, socket}
+
+      %{receiver_id: receiver_id} ->
+        if receiver_id == presence.id do
+          current_conversation = %{current_conversation | receiver_active: true}
+          {:noreply, assign(socket, :current_conversation, current_conversation)}
+        else
+          {:noreply, socket}
+        end
+    end
+  end
+
+  def handle_info({AuthDemoWeb.Presence, {:leave, presence}}, socket) do
+    current_conversation = socket.assigns.current_conversation
+
+    case current_conversation do
+      nil ->
+        {:noreply, socket}
+
+      %{receiver_id: receiver_id} ->
+        if receiver_id == presence.id do
+          current_conversation = %{current_conversation | receiver_active: false}
+          {:noreply, assign(socket, :current_conversation, current_conversation)}
+        else
+          {:noreply, socket}
+        end
+    end
   end
 end

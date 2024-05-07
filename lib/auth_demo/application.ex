@@ -17,7 +17,8 @@ defmodule AuthDemo.Application do
       # Start a worker by calling: AuthDemo.Worker.start_link(arg)
       # {AuthDemo.Worker, arg},
       # Start to serve requests, typically the last entry
-      AuthDemoWeb.Endpoint
+      AuthDemoWeb.Endpoint,
+      AuthDemoWeb.Presence
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -79,7 +79,15 @@
             <%= @current_conversation.chat_title %>
           </h2>
           <!-- Display online/offline status -->
-          <p class="text-xs text-gray-400">Online</p>
+          <%= if @current_conversation.receiver_active do %>
+            <p class="text-xs text-green-400">
+              Online
+            </p>
+          <% else %>
+            <p class="text-xs text-red-400">
+              Offline
+            </p>
+          <% end %>
         </div>
       </div>
       <!-- Chat messages -->
