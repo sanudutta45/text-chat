@@ -70,73 +70,60 @@ defmodule AuthDemoWeb.ChatLive do
   end
 
   def handle_event("send-message", %{"message" => %{"text" => text}}, socket) do
-    if socket.assigns.current_conversation.id == :new do
-      new_conversation =
-        Map.put(socket.assigns.current_conversation, :last_message, text)
-        |> Map.put(:unread_messages, 0)
+    {conversation, conversations} =
+      if socket.assigns.current_conversation.id == :new do
+        new_conversation =
+          Map.put(socket.assigns.current_conversation, :last_message, text)
+          |> Map.put(:unread_messages, 0)
 
-      {:ok, res} = Conversations.create_conversation(new_conversation)
+        {:ok, res} = Conversations.create_conversation(new_conversation)
 
-      new_message =
-        %{
-          text: text,
-          status: 0,
-          sender_id: new_conversation.sender_id,
-          receiver_id: new_conversation.receiver_id,
-          conversation_id: res.id,
-          sender_email: socket.assigns.current_user.email
-        }
+        new_conversation = %{new_conversation | id: res.id}
 
-      updated_conversations = [new_conversation | socket.assigns.conversations]
-      updated_messages = socket.assigns.messages ++ [new_message]
-      Messages.create_message(new_message)
-      Endpoint.broadcast("user:#{new_message.receiver_id}", "new_message", new_message)
+        {new_conversation, [new_conversation | socket.assigns.conversations]}
+      else
+        updated_conversation = Map.put(socket.assigns.current_conversation, :last_message, text)
 
-      {:noreply,
-       assign(socket,
-         current_conversation: new_conversation,
-         conversations: updated_conversations,
-         messages: updated_messages,
-         form: to_form(Messages.change_message(%Message{}))
-       )}
-    else
-      updated_conversation = Map.put(socket.assigns.current_conversation, :last_message, text)
+        {:ok, res} =
+          Conversations.update_conversation(updated_conversation)
 
-      {:ok, res} =
-        Conversations.update_conversation(updated_conversation)
+        updated_conversations =
+          Enum.map(socket.assigns.conversations, fn c ->
+            if c.id == res.id do
+              %{c | last_message: text, updated_at: res.updated_at}
+            else
+              c
+            end
+          end)
+          |> Enum.sort_by(& &1.updated_at, :desc)
 
-      new_message =
-        %{
-          text: text,
-          status: 0,
-          sender_id: updated_conversation.sender_id,
-          receiver_id: updated_conversation.receiver_id,
-          conversation_id: res.id,
-          sender_email: socket.assigns.current_user.email
-        }
+        {updated_conversation, updated_conversations}
+      end
 
-      updated_conversations =
-        Enum.map(socket.assigns.conversations, fn c ->
-          if c.id == res.id do
-            %{c | last_message: text, updated_at: res.updated_at}
-          else
-            c
-          end
-        end)
-        |> Enum.sort_by(& &1.updated_at, :desc)
+    new_message =
+      %{
+        text: text,
+        status: 0,
+        sender_id: conversation.sender_id,
+        receiver_id: conversation.receiver_id,
+        conversation_id: conversation.id,
+        sender_email: socket.assigns.current_user.email
+      }
 
-      updated_messages = socket.assigns.messages ++ [new_message]
-      Messages.create_message(new_message)
-      Endpoint.broadcast("user:#{new_message.receiver_id}", "new_message", new_message)
+    {:ok, res} = Messages.create_message(new_message)
+    new_message = Map.put(new_message, :inserted_at, res.inserted_at)
 
-      {:noreply,
-       assign(socket,
-         current_conversation: updated_conversation,
-         conversations: updated_conversations,
-         messages: updated_messages,
-         form: to_form(Messages.change_message(%Message{}))
-       )}
-    end
+    updated_messages = socket.assigns.messages ++ [new_message]
+
+    Endpoint.broadcast("user:#{new_message.receiver_id}", "new_message", new_message)
+
+    {:noreply,
+     assign(socket,
+       current_conversation: conversation,
+       conversations: conversations,
+       messages: updated_messages,
+       form: to_form(Messages.change_message(%Message{}))
+     )}
   end
 
   def handle_event("show-conversation", %{"conversation_id" => id}, socket) do
