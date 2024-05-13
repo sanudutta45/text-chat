@@ -28,7 +28,8 @@ defmodule AuthDemoWeb.ChatLive do
        conversations: conversations,
        current_conversation: nil,
        messages: [],
-       receiver_active: false
+       receiver_active: false,
+       timezone: get_connect_params(socket)["timezone"]
      )}
   end
 

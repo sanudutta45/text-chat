@@ -97,11 +97,10 @@
         id="chat_messages"
       >
         <%= for {message, index} <- Enum.with_index(@messages) do %>
-          <% previous_message = Enum.at(@messages, index - 1) %>
-          <%= if(index == 0 or (Timex.compare(message.inserted_at, previous_message.inserted_at, :days) != 0)) do %>
+          <%= if(index == 0 or (AuthDemoWeb.Helpers.TimexHelpers.is_on_same_day(message.inserted_at, Enum.at(@messages, index-1).inserted_at, @timezone) != 0)) do %>
             <li class="flex justify-center mb-2 mt-2">
               <p class="text-center text-gray-400 rounded-full bg-gray-700 px-4 py-1 inline-block">
-                <%= AuthDemoWeb.Helpers.TimexHelpers.timeline_date(message.inserted_at) %>
+                <%= AuthDemoWeb.Helpers.TimexHelpers.timeline_date(message.inserted_at, @timezone) %>
               </p>
             </li>
           <% end %>
@@ -113,7 +112,11 @@
               </p>
               
               <p class="text-xs">
-                <% {_, time} = Timex.format(message.inserted_at, "{h24}:{m}") %> <%= time %>
+                <%= AuthDemoWeb.Helpers.TimexHelpers.format_date(
+                  message.inserted_at,
+                  "{h24}:{m}",
+                  @timezone
+                ) %>
               </p>
             </div>
           </li>
