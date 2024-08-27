@@ -36,6 +36,7 @@ defmodule AuthDemoWeb.Helpers.TimexHelpers do
     )
   end
 
+  
   defp is_yesterday(timeline, timezone) do
     yesterday = Timex.shift(client_beginning_of_day(timezone), days: -1)
 
